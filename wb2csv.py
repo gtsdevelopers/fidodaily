@@ -21,13 +21,26 @@ try:
     args = vars(parser.parse_args())
 except ImportError:
     parser = None
+
+if not os.path.exists('./data'):
+    os.makedirs('./data')
+if not os.path.exists('./data2'):
+    os.makedirs('./data2')
+
+if not os.path.exists('./OUT'):
+    os.makedirs('./OUT')
+
+
     
 DICTFILE = open(args['dictfile'], 'rt')
 WBFILE = args['salesfile']
 DATEINVOICE = args['date']
-ERRORFILE = '/tmp/errfile' + DATEINVOICE + '.csv'
+ERRORFILE = 'OUT/errfile' + DATEINVOICE + '.csv'
 fiftycl = open('data2/50cl.csv','w')
 sixtycl = open('data2/60cl.csv','w')
+
+
+
 
 errfile = open(ERRORFILE, 'w')
 DATAFOLDER = 'data'

@@ -4,11 +4,13 @@ import sys
 from xlrd import open_workbook
 import os, shutil
 from __builtin__ import file
+from shutil import copy
+from vobject.icalendar import PRODID
 
 """
 Script to extract named sheets from a workbook into csv
 
-*** wbfile is passed from command line passed as -w wbfile  
+*** salesfile is passed from command line passed as -w salesfile  
 *** Sheets are converted to csv in data/ folder
 """
 # Command line Argument Handling
@@ -24,22 +26,15 @@ except ImportError:
 
 if not os.path.exists('./data'):
     os.makedirs('./data')
-if not os.path.exists('./data2'):
-    os.makedirs('./data2')
 
 if not os.path.exists('./OUT'):
     os.makedirs('./OUT')
-
 
     
 DICTFILE = open(args['dictfile'], 'rt')
 WBFILE = args['salesfile']
 DATEINVOICE = args['date']
 ERRORFILE = 'OUT/errfile' + DATEINVOICE + '.csv'
-fiftycl = open('data2/50cl.csv','w')
-sixtycl = open('data2/60cl.csv','w')
-
-
 
 
 errfile = open(ERRORFILE, 'w')
@@ -54,7 +49,6 @@ def delfiles(folder):
         try:
             if os.path.isfile(file_path):
                 os.unlink(file_path)
-        #elif os.path.isdir(file_path): shutil.rmtree(file_path)
         except Exception as e:
             print(e)
 
@@ -90,6 +84,8 @@ def customerqc(name,type):
         custname = custname.replace('Ayodele Franca','Franca Ayodele')
         custname = custname.replace('Godspower Customer','Godspower-Customer')
         custname = custname.replace('New Integrated Service','New Integrated Services')
+        custname = custname.replace('Florence','Flourence')
+        custname = custname.replace('Seriyai Sam','Serieya Sam')
     if type == 'SALES':
        
         custname = custname.replace('Kingley','Kingsley')
@@ -102,12 +98,13 @@ def reformat (file,prodtype):
     
     if 'OBUN' in file:
         PRODLOC = 'OBUNNA'
-    elif 'KPANSIA' in file:
+    if 'KPANSIA' in file:
         PRODLOC = 'KPANSIA'
-    elif 'DISP' in file:
+    if 'DISP' in file:
         PRODLOC = 'DISPENSER'
-    else:
-        PRODLOC = ""
+    if 'CRATE' in file:
+        PRODLOC = "CRATES"
+    
     outfile = open("OUT/out_%s" %(file), 'w')
     reader1 = csv.reader(DICTFILE)
     
@@ -139,8 +136,23 @@ def reformat (file,prodtype):
                 
             if 'KPANSIA' in file:                
                 printstr = ',__export__.account_payment_term_8,__export__.account_account_7,'+sid +','+salesperson+','+cid+','+custname+','+DATEINVOICE +','+'__export__.product_product_421'+','+prodtype+','+'__export__.account_account_204'+','+row[7]+','+row[8]
+            
+            if 'DISP' in file:                
+                printstr = ',__export__.account_payment_term_9,__export__.account_account_7,'+sid +','+salesperson+','+cid+','+custname+','+DATEINVOICE +','+'__export__.product_product_433'+','+prodtype+','+'__export__.account_account_98'+','+row[7]+','+row[8]
+            
+            if 'CRATE' in file:
+                prodtyp = row[5]
+                if '50CL' in prodtyp:
+                    prdid = '__export__.product_product_883'
+                    acctid = '__export__.account_account_205'
+                    
+                if '60CL' in prodtyp:
+                    prdid = '__export__.product_product_572' 
+                    acctid = '__export__.account_account_206'
                 
-            print (printstr,file=outfile)
+                printstr = ',__export__.account_payment_term_10,__export__.account_account_7,'+sid +','+salesperson+','+cid+','+custname+','+DATEINVOICE +','+prdid+','+prodtyp+','+acctid+','+row[7]+','+row[8]
+            if (int(row[7]) != 0) and (int(row[8]) != 0):
+                print (printstr,file=outfile)
         except KeyError as e:
             ercount = ercount + 1
             print('Customer,',row[3],',Salesperson,',row[1],',',e.args[0],',**** ',file,file=errfile)
@@ -148,25 +160,6 @@ def reformat (file,prodtype):
     
     print ('PRODLOC,LINES,Errors,Errpct\n%s,%s,%s,%.2f%%\n' %(PRODLOC, rcount,ercount,((ercount-1)/(rcount-1))*100))
     outfile.close()
-    
-    
-def splitcrate(file,folder):
-    # Splits crate file into crate50 and crate60
-    path = folder + '/' + file
-    cratefile = open(path,'rt')
-    row = 0
-    for line in cratefile:
-        if row == 0 and '60CL' not in line and '50cl' not in line:
-            print (line,file=sixtycl)
-            print (line,file=fiftycl)
-            row = row + 1
-        if '60CL' in line:
-            print (line,file=sixtycl)
-        elif '50CL' in line:
-            print (line,file=fiftycl)
-    cratefile.close()
-    fiftycl.close()
-    sixtycl.close()
     
 # Make import-ready files
 def convfiles(folder):
@@ -177,8 +170,8 @@ def convfiles(folder):
         elif ('DISPENSER' in file.upper()):
             reformat(file,'Dispenser')
         elif ('CRATE' in file.upper()):
-            splitcrate(file,folder)
-    
+            reformat(file,'Crate')
+      
 # Create csv files from sheets in Sales Workbook
 def csvextract():
     wb = open_workbook(WBFILE)
@@ -192,8 +185,7 @@ def csvextract():
         path =  DATAFOLDER + '/%s.csv'
         with open( path %(sheet.name.replace(" ","")+DATEINVOICE), "w") as file:
             writer = csv.writer(file, delimiter = ",")
-            # print (sheet, sheet.name, sheet.ncols, sheet.nrows)
- 
+           
             header = [cell.value for cell in sheet.row(0)]
             writer.writerow(header)
  
@@ -201,7 +193,7 @@ def csvextract():
                 row = [int(cell.value) if isinstance(cell.value, float) else cell.value
                    for cell in sheet.row(row_idx)]
                 writer.writerow(row)
- 
+
 def main():
     # extract csv from sheets in workbook
     csvextract()

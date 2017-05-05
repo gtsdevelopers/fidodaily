@@ -125,11 +125,11 @@ elif BANKNAME == 'FCMB':
     QUERYSTMT = QUERYSTMT + DATEAFTER + DATEBEFORE
  
 elif BANKNAME == 'STANBIC':
-    QUERYSTMT = 'from:(StanbicIBTC-E-Alert@stanbic.com) Credit Alert'
+    QUERYSTMT = 'from:(StanbicIBTC-E-Alert@stanbic.com) Credit Alert '
     QUERYSTMT = QUERYSTMT + DATEAFTER + DATEBEFORE 
 
 elif BANKNAME == 'STERLING':
-    QUERYSTMT = 'label:fido-credit subject:(CREDIT ALERT ON (00632XXXX4))'
+    QUERYSTMT = 'label:fido-credit subject:(CREDIT ALERT ON (00632XXXX4)) -{NEFT POS}'
     QUERYSTMT = QUERYSTMT + DATEAFTER + DATEBEFORE
     print (QUERYSTMT)
 
